@@ -21,7 +21,7 @@ def liveness_score(face_roi):
     return score
 
 # ---------------- SETTINGS ---------------- #
-REAL_THRESHOLD = 1200
+REAL_THRESHOLD = 1250
 cap = cv2.VideoCapture(0)
 
 start_time = time.time()
@@ -72,7 +72,11 @@ while True:
                 label = "Detecting..."
                 color = (255, 255, 0)
 
-                cv2.rectangle(frame, (x, y), (x+cw, y+ch), color, 2)
+                # cv2.rectangle(frame, (x, y), (x+cw, y+ch), color, 2)
+                center = (x + cw // 2, y + ch // 2)
+                axes = (cw // 2, int(ch * 0.7))
+
+                cv2.ellipse(frame, center, axes, 0, 0, 360, color, 2)
                 cv2.putText(frame, label,
                             (x, y-10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
