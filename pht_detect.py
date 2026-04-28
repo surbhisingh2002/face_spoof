@@ -1,126 +1,103 @@
-# import cv2
-# import numpy as np
-# import mediapipe as mp
-
-# # ---------------- INIT ---------------- #
-# mp_face_mesh = mp.solutions.face_mesh
-# face_mesh = mp_face_mesh.FaceMesh(static_image_mode=True)
-
-# def detect_face_landmarks(image):
-#     rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-#     results = face_mesh.process(rgb)
-#     return results.multi_face_landmarks
-
-# def fake_or_real(image_path):
-#     image = cv2.imread(image_path)
-#     h, w = image.shape[:2]
-
-#     faces = detect_face_landmarks(image)
-
-#     if not faces:
-#         return "NO FACE DETECTED "
-
-#     lm = faces[0].landmark
-
-#     # ---------------- SIMPLE LIVENESS HEURISTICS ---------------- #
-
-#     # Eye openness check
-#     left_eye_top = lm[159].y
-#     left_eye_bottom = lm[145].y
-
-#     right_eye_top = lm[386].y
-#     right_eye_bottom = lm[374].y
-
-#     left_eye_open = abs(left_eye_top - left_eye_bottom)
-#     right_eye_open = abs(right_eye_top - right_eye_bottom)
-
-#     avg_eye_open = (left_eye_open + right_eye_open) / 2
-
-#     # Nose stability check (flat image = too stable)
-#     nose = lm[1]
-#     nose_variation = abs(nose.z)
-
-#     # ---------------- DECISION RULE ---------------- #
-
-#     if avg_eye_open < 0.005:
-#         return "FAKE (No natural eye structure / photo likely) "
-
-#     if nose_variation < 0.01:
-#         return "FAKE (Flat depth detected - possible photo/screen) "
-
-#     return "REAL (Likely live face) "
-
-# # ---------------- RUN ---------------- #
-# image_path = "images/1000063515.jpg"   # change your image here
-# result = fake_or_real(image_path)
-
-
-# print("\nRESULT:", result)
-
 import cv2
 import numpy as np
 import mediapipe as mp
+import time
 
-# ---------------- INIT ---------------- #
-mp_face_mesh = mp.solutions.face_mesh
-face_mesh = mp_face_mesh.FaceMesh(static_image_mode=True)
+# ---------------- FACE DETECTION ---------------- #
+mp_face = mp.solutions.face_detection
+face_detection = mp_face.FaceDetection(min_detection_confidence=0.6)
 
-def detect_face_landmarks(image):
-    rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    results = face_mesh.process(rgb)
-    return results.multi_face_landmarks
+# ---------------- LIVENESS FUNCTION ---------------- #
+def liveness_score(face_roi):
+    gray = cv2.cvtColor(face_roi, cv2.COLOR_BGR2GRAY)
 
-def get_liveness_percentage(image_path):
+    lap_var = cv2.Laplacian(gray, cv2.CV_64F).var()
+    noise = np.std(gray)
 
-    # Load image
-    image = cv2.imread(image_path)
+    edges = cv2.Canny(gray, 50, 150)
+    edge_ratio = np.sum(edges) / (gray.shape[0] * gray.shape[1])
 
-    # Safety check
-    if image is None:
-        return "ERROR: Image not found "
+    score = (lap_var * 0.4) + (noise * 0.3) + (edge_ratio * 100)
+    return score
 
-    h, w = image.shape[:2]
+# ---------------- SETTINGS ---------------- #
+REAL_THRESHOLD = 1200
+cap = cv2.VideoCapture(0)
 
-    # Detect face
-    faces = detect_face_landmarks(image)
-    if not faces:
-        return "NO FACE DETECTED "
+start_time = time.time()
+TIME_LIMIT = 10
 
-    lm = faces[0].landmark
-    print(lm)
+#  store all scores here
+all_scores = []
 
-    # ---------------- FEATURES ---------------- #
+print("Running for 10 seconds...")
 
-    # Eye openness
-    left_eye_open = abs(lm[159].y - lm[145].y)
-    right_eye_open = abs(lm[386].y - lm[374].y)
-    avg_eye_open = (left_eye_open + right_eye_open) / 2
+# ---------------- MAIN LOOP ---------------- #
+while True:
 
-    # Depth (flat image detection)
-    nose_depth = abs(lm[1].z)
+    if time.time() - start_time > TIME_LIMIT:
+        print("Time finished. Processing results...")
+        break
 
-    # ---------------- LIVENESS SCORE ---------------- #
+    ret, frame = cap.read()
+    if not ret:
+        break
 
-    score = 0
+    frame = cv2.resize(frame, (640, 480))
+    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-    # Eye score (0–50)
-    if avg_eye_open > 0.10:
-        score += 50
-    elif avg_eye_open > 0.05:
-        score += 25
+    results = face_detection.process(rgb)
 
-    # Depth score (0–50)
-    if nose_depth > 0.15:
-        score += 50
-    elif nose_depth > 0.08:
-        score += 25
+    if results.detections:
+        for det in results.detections:
+            bbox = det.location_data.relative_bounding_box
 
-    # ---------------- RESULT ---------------- #
+            h, w, _ = frame.shape
+            x = int(bbox.xmin * w)
+            y = int(bbox.ymin * h)
+            cw = int(bbox.width * w)
+            ch = int(bbox.height * h)
 
-    return f"LIVENESS SCORE: {score}%"
+            x, y = max(0, x), max(0, y)
 
-# ---------------- RUN ---------------- #
-image_path = "images/1000063543.jpg"   
-result = get_liveness_percentage(image_path)
+            face_roi = frame[y:y+ch, x:x+cw]
 
-print("\nRESULT:", result)
+            if face_roi.size > 0:
+                score = liveness_score(face_roi)
+
+                # store score
+                all_scores.append(score)
+
+                # optional live display
+                label = "Detecting..."
+                color = (255, 255, 0)
+
+                cv2.rectangle(frame, (x, y), (x+cw, y+ch), color, 2)
+                cv2.putText(frame, label,
+                            (x, y-10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+
+    cv2.imshow("Anti-Spoofing System", frame)
+
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        print("Manual exit.")
+        break
+
+# ---------------- FINAL DECISION ---------------- #
+cap.release()
+cv2.destroyAllWindows()
+
+if len(all_scores) > 0:
+    avg_score = np.mean(all_scores)
+    print(f"avg_score {avg_score}")
+
+    print("\n======================")
+    print("Average Score:", avg_score)
+
+    if avg_score < REAL_THRESHOLD:
+        print("FINAL RESULT: REAL FACE ")
+    else:
+        print("FINAL RESULT: FAKE / SPOOF ")
+    print("======================")
+else:
+    print("No face detected.")
