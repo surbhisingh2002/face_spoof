@@ -1,44 +1,44 @@
 import cv2
 import numpy as np
 import mediapipe as mp
-import tensorflow as tf
+import time
 
-# ---------------- FACE MESH ---------------- #
+# ---------------- FACE DETECTION ---------------- #
 mp_face = mp.solutions.face_detection
 face_detection = mp_face.FaceDetection(min_detection_confidence=0.6)
 
-# ---------------- SIMPLE CNN MODEL (placeholder logic) ---------------- #
-# In real systems this is a trained anti-spoof model
-# Here we simulate using texture + blur + motion cues
-
-
+# ---------------- LIVENESS FUNCTION ---------------- #
 def liveness_score(face_roi):
     gray = cv2.cvtColor(face_roi, cv2.COLOR_BGR2GRAY)
 
-    # 1. Blur detection (printed photos are often sharper or too smooth)
     lap_var = cv2.Laplacian(gray, cv2.CV_64F).var()
-
-    # 2. Noise / texture check
     noise = np.std(gray)
 
-    # 3. Edge density
     edges = cv2.Canny(gray, 50, 150)
     edge_ratio = np.sum(edges) / (gray.shape[0] * gray.shape[1])
 
-    # Normalize score (simple heuristic)
     score = (lap_var * 0.4) + (noise * 0.3) + (edge_ratio * 100)
-
     return score
 
-# thresholds (tune based on camera)
-REAL_THRESHOLD = 1200
-
+# ---------------- SETTINGS ---------------- #
+REAL_THRESHOLD = 1250
 cap = cv2.VideoCapture(0)
 
-frame_count = 0
-motion_history = []
+TIME_LIMIT = 10
+start_time = time.time()
 
+all_scores = []
+
+print("Running for 10 seconds...")
+
+# ---------------- MAIN LOOP ---------------- #
 while True:
+
+    # stop after 10 seconds
+    if time.time() - start_time > TIME_LIMIT:
+        print("Time finished. Processing results...")
+        break
+
     ret, frame = cap.read()
     if not ret:
         break
@@ -48,10 +48,9 @@ while True:
 
     results = face_detection.process(rgb)
 
-    label = "No Face"
-
     if results.detections:
         for det in results.detections:
+
             bbox = det.location_data.relative_bounding_box
 
             h, w, _ = frame.shape
@@ -65,29 +64,42 @@ while True:
             face_roi = frame[y:y+ch, x:x+cw]
 
             if face_roi.size > 0:
+
+                # -------- SCORE -------- #
                 score = liveness_score(face_roi)
-                print(score)
-                # ---------------- CLASSIFICATION ---------------- #
-                if score < REAL_THRESHOLD:
-                    label = "REAL "
-                    color = (0, 255, 0)
-                else:
-                    label = "FAKE / SPOOF "
-                    color = (0, 0, 255)
+                all_scores.append(score)
 
-                # draw box
-                cv2.rectangle(frame, (x, y), (x+cw, y+ch), color, 2)
+                # -------- DISPLAY -------- #
+                center = (x + cw // 2, y + ch // 2)
+                axes = (cw // 2, int(ch * 0.7))
 
-                # cv2.putText(frame, f"{label} | Score: {int(score)}",
-                #             (x, y-10),
-                cv2.putText(frame, f"{label}",
-                            (x, y-10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+                cv2.ellipse(frame, center, axes, 0, 0, 360, (0, 255, 0), 2)
+
+                cv2.putText(frame, "Detecting...",
+                            (x, y - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7,
+                            (0, 255, 0), 2)
 
     cv2.imshow("Anti-Spoofing System", frame)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
+        print("Manual exit.")
         break
 
+# ---------------- FINAL DECISION ---------------- #
 cap.release()
 cv2.destroyAllWindows()
+
+if len(all_scores) > 0:
+    avg_score = np.mean(all_scores)
+
+    print("\n======================")
+    print("Average Score:", avg_score)
+
+    if avg_score < REAL_THRESHOLD:
+        print("FINAL RESULT: REAL FACE ")
+    else:
+        print("FINAL RESULT: FAKE / SPOOF ")
+    print("======================")
+else:
+    print("No face detected.")
