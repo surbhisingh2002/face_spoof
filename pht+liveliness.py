@@ -3,8 +3,7 @@ import mediapipe as mp
 import time
 import numpy as np
 
-
-
+# ---------------- LIVENESS FUNCTION ---------------- #
 def liveness_score(face_roi):
     gray = cv2.cvtColor(face_roi, cv2.COLOR_BGR2GRAY)
 
@@ -29,12 +28,12 @@ selfie_taken = False
 all_scores = []
 REAL_THRESHOLD = 1400
 
-
 TIME_LIMIT = 10
 start_time = time.time()
 
 print("Align face inside oval...")
 
+# ---------------- MAIN LOOP ---------------- #
 while True:
 
     if time.time() - start_time > TIME_LIMIT:
@@ -49,17 +48,18 @@ while True:
     h, w, _ = frame.shape
 
     clean_frame = frame.copy()
+    display_frame = frame.copy()
 
     rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     results = face_detection.process(rgb)
-
-    display_frame = frame.copy()
 
     center = (w // 2, h // 2)
     axes = (110, 150)
 
     face_inside = False
+    face_roi = None
 
+    # ---------------- FACE DETECTION ---------------- #
     if results.detections:
         for det in results.detections:
 
@@ -70,19 +70,29 @@ while True:
             cw = int(bbox.width * w)
             ch = int(bbox.height * h)
 
+            x, y = max(0, x), max(0, y)
+            left = x
+            right = x + cw
+            top = y
+            bottom = y + ch
             face_center = (x + cw // 2, y + ch // 2)
 
-            if (abs(face_center[0] - center[0]) < axes[0] and
-                abs(face_center[1] - center[1]) < axes[1]):
+            # check inside oval
+            if (abs(left - center[0]) < axes[0] and
+                abs(right - center[0]) < axes[0] and
+                abs(top - center[1]) < axes[1] and
+                abs(bottom - center[1]) < axes[1]):
 
                 face_inside = True
+
+                face_roi = frame[y:y+ch, x:x+cw]
 
                 cv2.putText(display_frame, "Good Position",
                             (50, 50),
                             cv2.FONT_HERSHEY_SIMPLEX,
-                            0.8, (0, 255, 0), 2)  # green text
+                            0.8, (0, 255, 0), 2)
 
-    # ---------------- COLOR CHANGE ADDED HERE ---------------- #
+    # ---------------- OVAL COLOR ---------------- #
     if face_inside:
         color = (0, 255, 0)   # GREEN
     else:
@@ -90,40 +100,31 @@ while True:
 
     cv2.ellipse(display_frame, center, axes, 0, 0, 360, color, 2)
 
-    # ---------------- TIMER LOGIC ---------------- #
+    # ---------------- LIVENESS ---------------- #
+    if face_roi is not None and face_roi.size > 0:
+        score = liveness_score(face_roi)
+        all_scores.append(score)
+
+        cv2.putText(display_frame, "Detecting...",
+                    (50, 120),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7, (0, 255, 0), 2)
+
+    # ---------------- SELFIE TIMER ---------------- #
     if face_inside and not selfie_taken:
-        
+
         if capture_start is None:
             capture_start = time.time()
 
         elif time.time() - capture_start >= 3:
-            cv2.imwrite("selfie.jpg", clean_frame)
-            print(" Clean selfie captured")
+            cv2.imwrite("selfie/selfie.jpg", clean_frame)
+            print("Clean selfie captured")
             selfie_taken = True
-        
-        # -----------------------------------------------------------
-        x, y = max(0, x), max(0, y)
-        face_roi = frame[y:y+ch, x:x+cw]
-        if face_roi.size > 0:
-
-            # -------- SCORE -------- #
-            score = liveness_score(face_roi)
-            all_scores.append(score)
-
-            # -------- DISPLAY -------- #
-            center = (x + cw // 2, y + ch // 2)
-            axes = (cw // 2, int(ch * 0.7))
-
-            cv2.ellipse(frame, center, axes, 0, 0, 360, (0, 255, 0), 2)
-
-            cv2.putText(frame, "Detecting...",
-                        (x, y - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7,
-                        (0, 255, 0), 2)
-
 
     else:
         capture_start = None
+
+    # ---------------- UI TEXT ---------------- #
     cv2.putText(display_frame, "Put face inside oval",
                 (50, 80),
                 cv2.FONT_HERSHEY_SIMPLEX,
@@ -135,6 +136,7 @@ while True:
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
+# ---------------- FINAL RESULT ---------------- #
 cap.release()
 cv2.destroyAllWindows()
 
@@ -145,9 +147,10 @@ if len(all_scores) > 0:
     print("Average Score:", avg_score)
 
     if avg_score < REAL_THRESHOLD:
-        print("FINAL RESULT: REAL FACE ")
+        print("FINAL RESULT: REAL FACE")
     else:
-        print("FINAL RESULT: FAKE / SPOOF ")
+        print("FINAL RESULT: FAKE / SPOOF")
     print("======================")
+
 else:
     print("No face detected.")
