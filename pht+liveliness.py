@@ -26,7 +26,7 @@ capture_start = None
 selfie_taken = False
 
 all_scores = []
-REAL_THRESHOLD = 1400
+REAL_THRESHOLD = 1600
 
 TIME_LIMIT = 10
 start_time = time.time()
@@ -123,7 +123,7 @@ while True:
 
     else:
         capture_start = None
-
+        
     # ---------------- UI TEXT ---------------- #
     cv2.putText(display_frame, "Put face inside oval",
                 (50, 80),
@@ -139,6 +139,7 @@ while True:
 # ---------------- FINAL RESULT ---------------- #
 cap.release()
 cv2.destroyAllWindows()
+
 
 if len(all_scores) > 0:
     avg_score = np.mean(all_scores)
