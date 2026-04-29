@@ -51,11 +51,17 @@ while True:
             y = int(bbox.ymin * h)
             cw = int(bbox.width * w)
             ch = int(bbox.height * h)
-
+            left = x
+            right = x + cw
+            top = y
+            bottom = y + ch
             face_center = (x + cw // 2, y + ch // 2)
 
-            if (abs(face_center[0] - center[0]) < axes[0] and
-                abs(face_center[1] - center[1]) < axes[1]):
+            # check inside oval
+            if (abs(left - center[0]) < axes[0] and
+                abs(right - center[0]) < axes[0] and
+                abs(top - center[1]) < axes[1] and
+                abs(bottom - center[1]) < axes[1]):
 
                 face_inside = True
 
