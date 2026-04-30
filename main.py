@@ -36,18 +36,18 @@ def match_faces(image_path_1, image_path_2):
     print(f"Distance         : {distance:.4f}")
 
     if match_percent >= 50:
-        print("Result           :  SAME PERSON")
-    if 40 < match_percent < 50:
-        print("Result           :  SAME PERSON")
+        print("Result           : SAME PERSON")
+    elif match_percent >= 40:
+        print("Result           : PERSON IN REVIEW")
     else:
-        print("Result           :  DIFFERENT PERSON")
+        print("Result           : DIFFERENT PERSON")
     print("======================\n")
 
     return match_percent
 
 
 # ── Change these to your image paths ──
-image1 = "1000000409.jpg"   
-image2 = "1000063543.jpg"   
+image1 = "1517.PNG"   
+image2 = "15177.PNG"   
 
 match_faces(image1, image2)
