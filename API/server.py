@@ -39,7 +39,7 @@ async def check_frame(file: UploadFile = File(...)):
     if len(results.detections) > 1:
         return {"status": "error", "message": "Multiple faces detected. Only one face allowed."}
 
-    det = results.detections[0]  # use first and only face
+    det = results.detections[0]       # use first and only face
     bbox = det.location_data.relative_bounding_box
     x = max(0, int(bbox.xmin * w))
     y = max(0, int(bbox.ymin * h))
