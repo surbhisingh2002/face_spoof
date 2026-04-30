@@ -47,10 +47,10 @@ async def check_frame(file: UploadFile = File(...)):
         return {"status": "no_face", "message": "Face ROI empty"}
 
     # ── 3. Check liveness ──
-    REAL_THRESHOLD = 1500
+    REAL_THRESHOLD = 500
     score = liveness_score(face_roi)
 
-    if score >= REAL_THRESHOLD:
+    if score <= REAL_THRESHOLD:
         return {
             "status": "fake",
             "score": float(score),
@@ -66,3 +66,4 @@ async def check_frame(file: UploadFile = File(...)):
         "score": float(score),
         "selfie": buffer.tobytes().hex()
     }
+

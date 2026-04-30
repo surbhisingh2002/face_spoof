@@ -33,8 +33,8 @@ python face_spoffing_withpht.py
 ## How liveness works
 ```
 Captures face → checks sharpness + noise + edges → gives score
-Score below 1600 → REAL ✅
-Score above 1600 → FAKE ❌
+Score above 500 → REAL ✅ 
+Score below 500 → FAKE ❌
 ```
 
 ---
@@ -43,3 +43,6 @@ Score above 1600 → FAKE ❌
 - `face_spoffing_withpht.py` needs a known face image at `images/your_photo.jpg`
 - `pht_liveliness.py` saves selfie in `selfie/` folder
 - Press **Q** to quit any script
+
+
+- less then 500 is fake based on pht captured by front camera of a pht from another phn. and more than this is fake
