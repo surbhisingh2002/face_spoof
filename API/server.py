@@ -35,7 +35,11 @@ async def check_frame(file: UploadFile = File(...)):
     if not results.detections:
         return {"status": "no_face", "message": "No face detected"}
 
-    det = results.detections[0]  # use first face
+    # ── 3. Only one face allowed ──
+    if len(results.detections) > 1:
+        return {"status": "error", "message": "Multiple faces detected. Only one face allowed."}
+
+    det = results.detections[0]  # use first and only face
     bbox = det.location_data.relative_bounding_box
     x = max(0, int(bbox.xmin * w))
     y = max(0, int(bbox.ymin * h))
@@ -46,7 +50,7 @@ async def check_frame(file: UploadFile = File(...)):
     if face_roi.size == 0:
         return {"status": "no_face", "message": "Face ROI empty"}
 
-    # ── 3. Check liveness ──
+    # ── 4. Check liveness ──
     REAL_THRESHOLD = 500
     score = liveness_score(face_roi)
 
@@ -57,7 +61,7 @@ async def check_frame(file: UploadFile = File(...)):
             "message": "Spoof detected. Try again."
         }
 
-    # ── 4. Save selfie and return ──
+    # ── 5. Save selfie and return ──
     cv2.imwrite("selfie.jpg", frame)
     _, buffer = cv2.imencode('.jpg', frame)
 
@@ -66,4 +70,3 @@ async def check_frame(file: UploadFile = File(...)):
         "score": float(score),
         "selfie": buffer.tobytes().hex()
     }
-
