@@ -37,7 +37,7 @@ def match_faces(image_path_1, image_path_2):
 
     if match_percent >= 50:
         print("Result           : SAME PERSON")
-    elif match_percent >= 40:
+    elif 30 <= match_percent < 50:
         print("Result           : PERSON IN REVIEW")
     else:
         print("Result           : DIFFERENT PERSON")
@@ -47,7 +47,7 @@ def match_faces(image_path_1, image_path_2):
 
 
 # ── Change these to your image paths ──
-image1 = "1517.PNG"   
-image2 = "15177.PNG"   
+image1 = "images/wmn1.PNG"   
+image2 = "images/wmnn2.PNG"   
 
 match_faces(image1, image2)
