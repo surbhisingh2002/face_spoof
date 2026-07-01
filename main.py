@@ -15,11 +15,11 @@ def match_faces(image_path_1, image_path_2):
     # ── Check if face found in both ──
     if len(encodings1) == 0:
         print(" No face found in image 1")
-        return "reupload_image1"
+        return 
 
     if len(encodings2) == 0:
         print(" No face found in image 2")
-        return "reupload_image2"
+        return 
     enc1 = encodings1[0]
     enc2 = encodings2[0]
 
@@ -45,5 +45,8 @@ def match_faces(image_path_1, image_path_2):
     return match_percent
 
 
+# ── Change these to your image paths ── 
+image1 = "images/fr1.PNG"
+image2 = "images/fr11.PNG"
 
 match_faces(image1, image2)
