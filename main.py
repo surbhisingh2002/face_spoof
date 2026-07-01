@@ -45,3 +45,9 @@ def match_faces(image_path_1, image_path_2):
 
     return match_percent
 
+
+# ── Change these to your image paths ──
+image1 = "images/wmn1.PNG"   
+image2 = "images/wmnn2.PNG"   
+
+match_faces(image1, image2)
